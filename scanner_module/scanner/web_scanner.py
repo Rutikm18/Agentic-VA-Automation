@@ -114,7 +114,8 @@ class WebScanner(BaseScanner):
         url = f"{scheme}://{target}:{port}/"
         await self.limiter.wait()
         loop = asyncio.get_running_loop()
-        info = await loop.run_in_executor(None, _fetch, url, self.timeout)
+        async with self.sem:
+            info = await loop.run_in_executor(None, _fetch, url, self.timeout)
         if info is None:
             return None
         return ScanResult(

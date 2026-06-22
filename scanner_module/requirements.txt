@@ -1,27 +1,54 @@
-# Core scanners (host_discovery, port_scanner, service_banner, tls_scanner,
-# udp_scanner, smb_scanner, snmp_scanner, web_scanner, mcp_ai_scanner) use the
-# Python standard library ONLY — no install required.
+# ============================================================================
+# VA Scanner Module — dependencies
+# ============================================================================
+# Requires Python 3.10+ (uses PEP 604 `X | None` type syntax).
+#
+# CORE IS PURE STANDARD LIBRARY. The entire scan pipeline and every
+# unauthenticated network scanner run with NO third-party packages:
+#
+#   pipeline.py            staged it/iot/ot orchestrator
+#   run_scan.py            per-scanner orchestrator
+#   scanner/passive_collector.py   listen-only OT discovery
+#   scanner/host_discovery, port_scanner, service_banner, tls_scanner,
+#   scanner/udp_scanner, smb_scanner, snmp_scanner, web_scanner,
+#   scanner/mcp_ai_scanner, db_scanner, mass_scan (fallback path)
+#
+# `pip install -r requirements.txt` is only needed for the OPTIONAL,
+# credential-based collectors below. Install it in a virtualenv:
+#     python3 -m venv .venv && source .venv/bin/activate
+#     pip install -r requirements.txt
+# ----------------------------------------------------------------------------
 
-# Optional, per-scanner:
-
-# ssh_collector.py — credentialed Linux inventory collection
+# --- ssh_collector.py — credentialed Linux inventory (authorized creds) ------
+# Pure-Python SSH; key-based auth strongly preferred over passwords.
 paramiko>=3.4.0
 
-# nmap_wrapper.py — requires the `nmap` binary installed on the system
-# (apt install nmap / brew install nmap). No Python package needed; it shells
-# out and parses XML with the stdlib.
+# --- windows_collector.py — credentialed Windows inventory -------------------
+# Two transports with graceful degradation: WinRM first, SMB/RemoteRegistry
+# fallback. Either package alone enables that transport; install both for the
+# full fallback chain.
+pywinrm>=0.4.3       # WinRM (5985/5986) read-only PowerShell inventory
+impacket>=0.11.0     # SMB + RemoteRegistry fallback (registry reads over 445)
 
-# Optional convenience for richer SNMP if you later replace the minimal probe:
+# --- Optional, NOT auto-installed (commented on purpose) ---------------------
+# Richer SNMP than the built-in minimal v1 probe in snmp_scanner.py. The stdlib
+# probe already works; uncomment only if you swap in a fuller SNMP engine.
 # pysnmp>=5.0.0
 
-# mass_scan.py — for true large-scale speed, install the masscan binary
-# (apt install masscan). Falls back to a pure-Python connect sweep if absent.
-# masscan is AGPL-3.0 — review licensing before bundling in a product.
-
-# db_scanner.py — pure stdlib, no install needed.
-
-# windows_collector.py — credentialed Windows inventory
-#   WinRM path:  pip install pywinrm
-#   SMB fallback path:  pip install impacket
-# Either transport alone is usable; install both for full graceful degradation.
-pywinrm>=0.4.3
+# ============================================================================
+# SYSTEM BINARIES — NOT pip-installable. Install with your OS package manager.
+# ============================================================================
+# These two scanners shell out to an external binary if present, and the module
+# parses their output with the stdlib. Both are optional:
+#
+#   nmap_wrapper.py   needs `nmap`     — macOS: brew install nmap
+#                                        Debian/Ubuntu: sudo apt install nmap
+#                     (SYN/-O profiles additionally need root.)
+#
+#   mass_scan.py      needs `masscan`  — macOS: brew install masscan
+#                                        Debian/Ubuntu: sudo apt install masscan
+#                     Falls back to a pure-Python connect sweep if absent
+#                     (use --fallback to force it). masscan raw mode needs root.
+#                     LICENSING: masscan is AGPL-3.0, nmap is NPSL (GPLv2-based)
+#                     — review before bundling either into a product.
+# ============================================================================

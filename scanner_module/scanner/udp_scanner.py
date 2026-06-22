@@ -90,12 +90,13 @@ class UDPScanner(BaseScanner):
         svc, payload = UDP_PROBES[port]
         await self.limiter.wait()
         loop = asyncio.get_running_loop()
-        try:
-            data = await loop.run_in_executor(
-                None, self._send_recv, target, port, payload)
-        except Exception as exc:
-            return ScanResult(self.name, target, port=port, proto="udp",
-                              status="error", error=str(exc))
+        async with self.sem:
+            try:
+                data = await loop.run_in_executor(
+                    None, self._send_recv, target, port, payload)
+            except Exception as exc:
+                return ScanResult(self.name, target, port=port, proto="udp",
+                                  status="error", error=str(exc))
         if data is None:
             # No reply: ambiguous. Report as open|filtered with no positive proof.
             return ScanResult(self.name, target, port=port, proto="udp",

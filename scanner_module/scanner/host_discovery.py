@@ -32,19 +32,20 @@ class HostDiscoveryScanner(BaseScanner):
     async def _probe(self, target: str, port: int) -> str | None:
         """Return 'open', 'refused', or None (no response)."""
         await self.limiter.wait()
-        try:
-            fut = asyncio.open_connection(target, port)
-            reader, writer = await asyncio.wait_for(fut, timeout=self.timeout)
-            writer.close()
+        async with self.sem:
             try:
-                await writer.wait_closed()
-            except Exception:
-                pass
-            return "open"
-        except ConnectionRefusedError:
-            return "refused"        # host is alive, port just closed
-        except (asyncio.TimeoutError, OSError):
-            return None
+                fut = asyncio.open_connection(target, port)
+                reader, writer = await asyncio.wait_for(fut, timeout=self.timeout)
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    pass
+                return "open"
+            except ConnectionRefusedError:
+                return "refused"        # host is alive, port just closed
+            except (asyncio.TimeoutError, OSError):
+                return None
 
     async def scan_target(self, target: str) -> list[ScanResult]:
         evidence_ports: list[tuple[int, str]] = []

@@ -297,6 +297,17 @@ class BaseScanner:
     Subclasses implement `scan_target(self, target)` (async), returning a list
     of ScanResult. The base handles scope enforcement, rate limiting, and
     concurrency so every scanner behaves identically and is measurable.
+
+    `self.sem` bounds the number of concurrent network operations — NOT
+    targets. Subclasses must acquire it (`async with self.sem:`) around each
+    individual socket operation (one port check, one banner grab, ...), never
+    once per target. A single target can legitimately fan out across hundreds
+    or thousands of ports; bounding only the target loop would still let
+    `--concurrency 100` against a wide port range open tens of thousands of
+    sockets at once (e.g. 100 targets x 65535 ports). Sharing one semaphore
+    across both the target loop and every scanner's internal port fan-out
+    keeps the total in-flight operation count equal to `--concurrency`,
+    matching what the flag's help text promises.
     """
 
     name = "base"
@@ -306,7 +317,7 @@ class BaseScanner:
         self.scope = scope
         self.limiter = RateLimiter(rate)
         self.timeout = timeout
-        self._sem = asyncio.Semaphore(concurrency)
+        self.sem = asyncio.Semaphore(concurrency)
 
     async def scan_target(self, target: str) -> list[ScanResult]:
         raise NotImplementedError
@@ -316,13 +327,12 @@ class BaseScanner:
             self.scope.assert_in_scope(target)
         except ScopeError as exc:
             return [ScanResult(self.name, target, status="error", error=str(exc))]
-        async with self._sem:
-            try:
-                return await self.scan_target(target)
-            except Exception as exc:  # never let one target kill the run
-                LOG.debug("scan error %s: %s", target, exc)
-                return [ScanResult(self.name, target, status="error",
-                                   error=f"{type(exc).__name__}: {exc}")]
+        try:
+            return await self.scan_target(target)
+        except Exception as exc:  # never let one target kill the run
+            LOG.debug("scan error %s: %s", target, exc)
+            return [ScanResult(self.name, target, status="error",
+                               error=f"{type(exc).__name__}: {exc}")]
 
     async def run(self, targets: Iterable[str], writer: ResultWriter) -> None:
         in_scope = list(self.scope.filter(targets))

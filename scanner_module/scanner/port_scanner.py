@@ -35,31 +35,32 @@ class PortScanner(BaseScanner):
 
     async def _scan_port(self, target: str, port: int) -> ScanResult | None:
         await self.limiter.wait()
-        try:
-            fut = asyncio.open_connection(target, port)
-            reader, writer = await asyncio.wait_for(fut, timeout=self.timeout)
-            writer.close()
+        async with self.sem:
             try:
-                await writer.wait_closed()
-            except Exception:
-                pass
-            return ScanResult(self.name, target, port=port, proto="tcp",
-                              status="open", evidence="tcp connect succeeded")
-        except ConnectionRefusedError:
-            if self.report_closed:
+                fut = asyncio.open_connection(target, port)
+                reader, writer = await asyncio.wait_for(fut, timeout=self.timeout)
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    pass
                 return ScanResult(self.name, target, port=port, proto="tcp",
-                                  status="closed", evidence="connection refused (RST)")
-            return None
-        except asyncio.TimeoutError:
-            if self.report_closed:
-                return ScanResult(self.name, target, port=port, proto="tcp",
-                                  status="filtered", evidence="no response (timeout)")
-            return None
-        except OSError as exc:
-            if self.report_closed:
-                return ScanResult(self.name, target, port=port, proto="tcp",
-                                  status="filtered", error=str(exc))
-            return None
+                                  status="open", evidence="tcp connect succeeded")
+            except ConnectionRefusedError:
+                if self.report_closed:
+                    return ScanResult(self.name, target, port=port, proto="tcp",
+                                      status="closed", evidence="connection refused (RST)")
+                return None
+            except asyncio.TimeoutError:
+                if self.report_closed:
+                    return ScanResult(self.name, target, port=port, proto="tcp",
+                                      status="filtered", evidence="no response (timeout)")
+                return None
+            except OSError as exc:
+                if self.report_closed:
+                    return ScanResult(self.name, target, port=port, proto="tcp",
+                                      status="filtered", error=str(exc))
+                return None
 
     async def scan_target(self, target: str) -> list[ScanResult]:
         tasks = [self._scan_port(target, p) for p in self.ports]

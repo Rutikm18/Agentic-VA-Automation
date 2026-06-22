@@ -123,18 +123,19 @@ class _ConnectSweep(BaseScanner):
 
     async def _probe(self, target: str, port: int) -> ScanResult | None:
         await self.limiter.wait()
-        try:
-            fut = asyncio.open_connection(target, port)
-            _r, w = await asyncio.wait_for(fut, timeout=self.timeout)
-            w.close()
+        async with self.sem:
             try:
-                await w.wait_closed()
-            except Exception:
-                pass
-            return ScanResult(self.name, target, port=port, proto="tcp",
-                              status="open", evidence="connect open (fallback)")
-        except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
-            return None
+                fut = asyncio.open_connection(target, port)
+                _r, w = await asyncio.wait_for(fut, timeout=self.timeout)
+                w.close()
+                try:
+                    await w.wait_closed()
+                except Exception:
+                    pass
+                return ScanResult(self.name, target, port=port, proto="tcp",
+                                  status="open", evidence="connect open (fallback)")
+            except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
+                return None
 
     async def scan_target(self, target: str) -> list[ScanResult]:
         tasks = [self._probe(target, p) for p in self.ports]

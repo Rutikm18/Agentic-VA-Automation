@@ -144,12 +144,13 @@ class TLSScanner(BaseScanner):
     async def _scan_port(self, target: str, port: int) -> ScanResult | None:
         await self.limiter.wait()
         loop = asyncio.get_running_loop()
-        try:
-            info = await loop.run_in_executor(
-                None, _scan_tls_sync, target, port, self.timeout)
-        except Exception as exc:
-            return ScanResult(self.name, target, port=port, proto="tcp",
-                              status="error", error=str(exc))
+        async with self.sem:
+            try:
+                info = await loop.run_in_executor(
+                    None, _scan_tls_sync, target, port, self.timeout)
+            except Exception as exc:
+                return ScanResult(self.name, target, port=port, proto="tcp",
+                                  status="error", error=str(exc))
         if not info:
             return None
         return ScanResult(

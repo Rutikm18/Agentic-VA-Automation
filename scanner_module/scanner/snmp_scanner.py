@@ -96,8 +96,9 @@ class SNMPScanner(BaseScanner):
         loop = asyncio.get_running_loop()
         for community in self.communities:
             await self.limiter.wait()
-            resp = await loop.run_in_executor(
-                None, self._query, target, community)
+            async with self.sem:
+                resp = await loop.run_in_executor(
+                    None, self._query, target, community)
             if resp:
                 sysdescr = _extract_sysdescr(resp)
                 return [ScanResult(

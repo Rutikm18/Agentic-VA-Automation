@@ -1,0 +1,15 @@
+# Authorization allowlist — the scanner refuses to touch anything not listed here.
+# One entry per line. Supports CIDR, single IP, and exact hostname.
+# Lines starting with # are comments.
+#
+# ONLY add ranges you are explicitly authorized to scan.
+
+# Example internal ranges:
+10.0.0.0/24
+192.168.1.0/24
+
+# Example single host:
+192.168.1.50
+
+# Example hostname (must match exactly; hostnames not listed are out of scope):
+# host.internal.example.com

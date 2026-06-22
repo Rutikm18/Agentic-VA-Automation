@@ -105,10 +105,11 @@ class SMBScanner(BaseScanner):
         await self.limiter.wait()
         loop = asyncio.get_running_loop()
 
-        smb1 = await loop.run_in_executor(
-            None, self._negotiate, target, _smb1_negotiate())
-        smb2 = await loop.run_in_executor(
-            None, self._negotiate, target, _smb2_negotiate())
+        async with self.sem:
+            smb1 = await loop.run_in_executor(
+                None, self._negotiate, target, _smb1_negotiate())
+            smb2 = await loop.run_in_executor(
+                None, self._negotiate, target, _smb2_negotiate())
 
         smb1_enabled = bool(smb1 and len(smb1) > 8 and smb1[4:8] == b"\xffSMB")
         smb2_supported = bool(smb2 and len(smb2) > 8 and smb2[4:8] == b"\xfeSMB")

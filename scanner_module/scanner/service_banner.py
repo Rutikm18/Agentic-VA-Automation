@@ -41,39 +41,40 @@ class ServiceBannerScanner(BaseScanner):
 
     async def _grab(self, target: str, port: int) -> ScanResult | None:
         await self.limiter.wait()
-        try:
-            fut = asyncio.open_connection(target, port)
-            reader, writer = await asyncio.wait_for(fut, timeout=self.timeout)
-        except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
-            return None   # not open; nothing to grab
-
-        banner = b""
-        try:
-            # First, give a "speak-first" service a moment to greet us.
-            if port not in _CLIENT_FIRST:
-                try:
-                    banner = await asyncio.wait_for(
-                        reader.read(self.read_bytes), timeout=1.5)
-                except asyncio.TimeoutError:
-                    banner = b""
-            # If nothing yet, send a minimal probe and read the reply.
-            if not banner:
-                probe = (_HTTP_PROBE % target.encode()
-                         if port in _CLIENT_FIRST or port in (80, 8080, 8000, 8888)
-                         else _GENERIC_PROBE)
-                try:
-                    writer.write(probe)
-                    await writer.drain()
-                    banner = await asyncio.wait_for(
-                        reader.read(self.read_bytes), timeout=self.timeout)
-                except (asyncio.TimeoutError, OSError):
-                    banner = banner or b""
-        finally:
-            writer.close()
+        async with self.sem:
             try:
-                await writer.wait_closed()
-            except Exception:
-                pass
+                fut = asyncio.open_connection(target, port)
+                reader, writer = await asyncio.wait_for(fut, timeout=self.timeout)
+            except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
+                return None   # not open; nothing to grab
+
+            banner = b""
+            try:
+                # First, give a "speak-first" service a moment to greet us.
+                if port not in _CLIENT_FIRST:
+                    try:
+                        banner = await asyncio.wait_for(
+                            reader.read(self.read_bytes), timeout=1.5)
+                    except asyncio.TimeoutError:
+                        banner = b""
+                # If nothing yet, send a minimal probe and read the reply.
+                if not banner:
+                    probe = (_HTTP_PROBE % target.encode()
+                             if port in _CLIENT_FIRST or port in (80, 8080, 8000, 8888)
+                             else _GENERIC_PROBE)
+                    try:
+                        writer.write(probe)
+                        await writer.drain()
+                        banner = await asyncio.wait_for(
+                            reader.read(self.read_bytes), timeout=self.timeout)
+                    except (asyncio.TimeoutError, OSError):
+                        banner = banner or b""
+            finally:
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    pass
 
         if not banner:
             return ScanResult(self.name, target, port=port, proto="tcp",

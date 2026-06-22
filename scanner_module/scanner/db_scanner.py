@@ -191,21 +191,22 @@ class DBScanner(BaseScanner):
 
     async def _probe_one(self, target: str, port: int, kind: str) -> dict | None:
         await self.limiter.wait()
-        try:
-            fut = asyncio.open_connection(target, port)
-            reader, writer = await asyncio.wait_for(fut, timeout=self.timeout)
-        except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
-            return None
-        try:
-            return await _PROBES[kind](reader, writer, self.timeout)
-        except Exception:
-            return None
-        finally:
-            writer.close()
+        async with self.sem:
             try:
-                await writer.wait_closed()
+                fut = asyncio.open_connection(target, port)
+                reader, writer = await asyncio.wait_for(fut, timeout=self.timeout)
+            except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
+                return None
+            try:
+                return await _PROBES[kind](reader, writer, self.timeout)
             except Exception:
-                pass
+                return None
+            finally:
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    pass
 
     async def _scan_port(self, target: str, port: int) -> ScanResult | None:
         kinds = list(_PROBES.keys()) if self.try_all else \
