@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    app: adversa-api
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      app: adversa-api
+  template:
+    metadata:
+      labels:
+        app: adversa-api
+        release: {{ .Release.Name }}
+      annotations:
+        {{- toYaml .Values.vault.annotations | nindent 8 }}
+    spec:
+      serviceAccountName: adversa-api
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: api
+          image: "{{ .Values.global.image.registry }}/{{ .Values.api.image.name }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: NODE_ENV
+              value: "{{ .Values.api.env.NODE_ENV }}"
+            - name: NEXT_TELEMETRY_DISABLED
+              value: "1"
+            - name: KAFKA_BROKERS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Release.Name }}-config
+                  key: KAFKA_BROKERS
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}-secrets
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          readinessProbe:
+            httpGet: { path: /api/agents/register, port: 3000 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/agents/register, port: 3000 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: vault-secrets
+              mountPath: /vault/secrets
+              readOnly: true
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: vault-secrets
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    app: adversa-api
+spec:
+  type: {{ .Values.api.service.type }}
+  selector:
+    app: adversa-api
+  ports:
+    - port: {{ .Values.api.service.port }}
+      targetPort: 3000
+      name: http

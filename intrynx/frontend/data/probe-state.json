@@ -1,0 +1,17 @@
+{
+  "probes": [
+    {
+      "probeId": "prb_1491e879",
+      "boxPub": "qEckKr4w2zsMWVBcg2yFv0zV4BIbK47uoTWssd64qRQ=",
+      "auth": "auth_37880779b9a64bf39a93be8061f93612",
+      "host": {
+        "hostname": "Rutiks-MacBook-Air.local",
+        "os": "darwin",
+        "osVersion": "Darwin Kernel Version 25.4.0: Thu Mar 19 19:31:09 PDT 2026; root:xnu-12377.101.15~1/RELEASE_ARM64_T8132",
+        "arch": "arm64",
+        "agentVersion": "1.0.0"
+      },
+      "enrolledAt": "2026-06-09T16:29:52.849Z"
+    }
+  ]
+}

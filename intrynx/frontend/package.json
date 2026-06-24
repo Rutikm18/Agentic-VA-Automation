@@ -1,0 +1,43 @@
+{
+  "name": "adversa",
+  "version": "0.5.0",
+  "private": true,
+  "bin": {
+    "adversa": "./bin/adversa"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "cli": "npx tsx cli/index.ts",
+    "build:cli": "tsc -p tsconfig.cli.json",
+    "adversa": "npx tsx cli/index.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.99.0",
+    "@tanstack/react-query": "^5.100.11",
+    "@types/jsonwebtoken": "^9.0.10",
+    "fast-xml-parser": "^5.8.0",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^1",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "recharts": "^3.8.1",
+    "resend": "^6.12.4",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "commander": "^14.0.3",
+    "eslint": "^9",
+    "eslint-config-next": "latest",
+    "tailwindcss": "^4",
+    "tsx": "^4.22.3",
+    "typescript": "^5"
+  }
+}

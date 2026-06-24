@@ -1,0 +1,32 @@
+# ── Build outputs ─────────────────────────────────────────────────────────────
+.next
+out
+node_modules
+
+# ── Git & IDE ─────────────────────────────────────────────────────────────────
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+*.swo
+
+# ── Env files (secrets — never copy into image) ───────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── OS noise ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Docs & CI (not needed at runtime) ────────────────────────────────────────
+README.md
+ARCHITECTURE.md
+*.md
+.github
+
+# ── Test & misc ───────────────────────────────────────────────────────────────
+*.test.*
+*.spec.*
+coverage

@@ -1,0 +1,9 @@
+httpx==0.28.1
+cryptography>=42.0,<48
+
+# Optional, install only on probes that need this capability — a missing
+# package just means that scan_type isn't advertised (see scanners/base.py's
+# available_check), same "missing engine -> not advertised" rule as nmap etc.
+# paramiko    # ssh_inventory  (credentialed Linux inventory)
+# pywinrm     # windows_inventory  (credentialed Windows inventory, WinRM transport)
+# impacket    # windows_inventory  (credentialed Windows inventory, SMB/registry fallback)

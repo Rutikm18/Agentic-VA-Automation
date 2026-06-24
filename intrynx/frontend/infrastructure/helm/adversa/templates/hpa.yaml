@@ -1,0 +1,40 @@
+{{- if .Values.api.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-api-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}-api
+  minReplicas: {{ .Values.api.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.api.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.api.autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}
+---
+{{- if .Values.worker.autoscaling.enabled }}
+# Worker HPA driven by Kafka consumer lag (requires KEDA)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Release.Name }}-worker-scaledobject
+spec:
+  scaleTargetRef:
+    name: {{ .Release.Name }}-worker
+  minReplicaCount: {{ .Values.worker.autoscaling.minReplicas }}
+  maxReplicaCount: {{ .Values.worker.autoscaling.maxReplicas }}
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: "kafka.{{ .Release.Namespace }}.svc.cluster.local:9092"
+        consumerGroup: adversa-worker
+        topic: {{ .Values.worker.autoscaling.kafkaTopic }}
+        lagThreshold: "{{ .Values.worker.autoscaling.kafkaLagThreshold }}"
+{{- end }}

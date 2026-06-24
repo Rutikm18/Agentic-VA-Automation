@@ -1,0 +1,32 @@
+[Unit]
+Description=netagent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Least privilege: a dedicated unprivileged system user (created by postinstall).
+User=netagent
+Group=netagent
+ExecStart=/usr/local/bin/netagent run
+EnvironmentFile=-/etc/netagent/netagent.env
+Restart=always
+RestartSec=10
+
+# Hardening — the probe only needs outbound network + its own state dir.
+StateDirectory=netagent
+ReadWritePaths=/var/lib/netagent
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# Default is connect-scan only (no elevated caps). For ICMP/ARP host discovery, grant ONLY
+# raw sockets — never full root — by uncommenting:
+# AmbientCapabilities=CAP_NET_RAW
+# CapabilityBoundingSet=CAP_NET_RAW
+
+[Install]
+WantedBy=multi-user.target

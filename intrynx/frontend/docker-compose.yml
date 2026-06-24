@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ADVERSA Platform — Docker Compose
+#
+# Profiles:
+#   prod  →  make up          (production image, port 3000)
+#   dev   →  make dev-up      (hot-reload mount, port 3001)
+#
+# Env vars are loaded from .env.local (create from .env.example)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Production ──────────────────────────────────────────────────────────────
+  adversa:
+    container_name: adversa-prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+      network: host
+    image: adversa:latest
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    # Raw socket access required for nmap SYN scans and naabu port discovery
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    profiles: [prod]
+
+  # ── Development (hot reload + scanning tools via runner image) ───────────────
+  adversa-dev:
+    container_name: adversa-dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner          # Use runner so tools are present
+    image: adversa:dev
+    working_dir: /app
+    # Override to run dev server; mount source for hot reload
+    user: root                # Root needed for nmap SYN scan in dev
+    command: sh -c "npm install --prefer-offline 2>/dev/null; npm run dev"
+    ports:
+      - "${DEV_PORT:-3001}:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NODE_ENV: development
+      NEXT_TELEMETRY_DISABLED: "1"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    profiles: [dev]

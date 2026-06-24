@@ -1,0 +1,20 @@
+#!/usr/bin/env node
+// Bootstrap: prefer compiled dist, fall back to tsx (dev)
+const path = require("path");
+const root = path.join(__dirname, "..");
+
+try {
+  require(path.join(root, "dist", "cli", "index.js"));
+} catch {
+  const { spawnSync } = require("child_process");
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--require", "tsx/cjs",
+      path.join(root, "cli", "index.ts"),
+      ...process.argv.slice(2),
+    ],
+    { stdio: "inherit" }
+  );
+  process.exit(result.status ?? 1);
+}

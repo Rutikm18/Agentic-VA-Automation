@@ -1,0 +1,105 @@
+# ── ADVERSA Helm Chart — Default Values ───────────────────────────────────────
+
+global:
+  image:
+    registry: ghcr.io/adversa
+    pullPolicy: IfNotPresent
+  storageClass: gp3
+
+# ── API Service ────────────────────────────────────────────────────────────────
+api:
+  replicaCount: 3
+  image:
+    name: adversa-api
+    tag: "1.4.0"
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits:   { cpu: "1000m", memory: "1Gi"  }
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 12
+    targetCPUUtilizationPercentage: 70
+  service:
+    type: ClusterIP
+    port: 3000
+  env:
+    NODE_ENV: production
+    NEXT_TELEMETRY_DISABLED: "1"
+
+# ── Worker Service ─────────────────────────────────────────────────────────────
+worker:
+  replicaCount: 2
+  image:
+    name: adversa-worker
+    tag: "1.4.0"
+  resources:
+    requests: { cpu: "500m", memory: "512Mi" }
+    limits:   { cpu: "2000m", memory: "2Gi"  }
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    # Scales on Kafka consumer lag via KEDA (install separately)
+    kafkaTopic: scan-jobs
+    kafkaLagThreshold: "10"
+
+# ── Agent Manager ──────────────────────────────────────────────────────────────
+agentManager:
+  replicaCount: 1
+  image:
+    name: adversa-agent-manager
+    tag: "1.4.0"
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "512Mi"  }
+
+# ── Ingress ────────────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  host: adversa.yourdomain.com
+  tlsSecretName: adversa-tls
+
+# ── Persistent Storage ─────────────────────────────────────────────────────────
+persistence:
+  postgres:
+    size: 100Gi
+    storageClass: gp3
+  neo4j:
+    size: 50Gi
+    storageClass: gp3
+  minio:
+    size: 200Gi
+    storageClass: gp3
+
+# ── External Secrets (Vault Agent Injector) ────────────────────────────────────
+vault:
+  enabled: true
+  address: "https://vault.internal:8200"
+  role: adversa-api
+  secretPath: "adversa/data/platform"
+  annotations:
+    vault.hashicorp.com/agent-inject: "true"
+    vault.hashicorp.com/role: adversa-api
+    vault.hashicorp.com/agent-inject-secret-config: "adversa/data/platform"
+    vault.hashicorp.com/agent-inject-template-config: |
+      {{- with secret "adversa/data/platform" -}}
+      ANTHROPIC_API_KEY={{ .Data.data.anthropic_api_key }}
+      DATABASE_URL={{ .Data.data.database_url }}
+      {{- end }}
+
+# ── Network Policy ─────────────────────────────────────────────────────────────
+networkPolicy:
+  enabled: true
+  # Only allow defined inter-service traffic
+  allowedPorts:
+    apiToPostgres: 5432
+    apiToRedis:    6379
+    apiToKafka:    9092
+    apiToNeo4j:    7687
+    apiToVault:    8200

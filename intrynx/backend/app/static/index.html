@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ADVERSA — Offensive Operations Console</title>
+<style>
+  :root{--bg:#0a0e17;--panel:#121a28;--panel2:#0d1320;--line:#22304a;--txt:#e8eef7;--muted:#8499b8;
+        --accent:#ef4444;--accent2:#3b82f6;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;
+        --crit:#ff3b5c;--high:#ff8a3d;--med:#facc15;--low:#38bdf8;--info:#7c8aa3}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 500px at 50% -10%,#15203a 0%,var(--bg) 60%);color:var(--txt);
+       font:14px/1.55 system-ui,Segoe UI,Roboto,sans-serif;min-height:100vh}
+  a{color:var(--accent2)}
+  header{display:flex;align-items:center;gap:14px;padding:12px 22px;background:rgba(13,19,32,.85);
+         backdrop-filter:blur(6px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  header .brand{font-weight:800;letter-spacing:3px;font-size:16px}
+  header .brand b{color:var(--accent)}
+  header .sp{flex:1}
+  select,input,button,textarea{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 11px}
+  button{background:var(--accent);border-color:var(--accent);color:#fff;cursor:pointer;font-weight:600}
+  button.b2{background:var(--accent2);border-color:var(--accent2)}
+  button.ghost{background:transparent;color:var(--txt);border-color:var(--line);font-weight:500}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  main{max-width:1180px;margin:22px auto;padding:0 22px;display:grid;gap:18px}
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kpi .n{font-size:26px;font-weight:800;line-height:1}
+  .kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:6px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .card h2{margin:0;font-size:15px;display:flex;align-items:center;gap:9px}
+  .card .desc{color:var(--muted);font-size:12.5px;margin:4px 0 14px}
+  .full{grid-column:1/-1}
+  .right{margin-left:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  tr.clk{cursor:pointer} tr.clk:hover{background:var(--panel2)}
+  .sev{display:inline-block;min-width:64px;text-align:center;font-size:11px;font-weight:800;
+       padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.5px;color:#0a0e17}
+  .sev.critical{background:var(--crit)} .sev.high{background:var(--high)} .sev.medium{background:var(--med)}
+  .sev.low{background:var(--low)} .sev.info{background:var(--info)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+  .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)} .dot.off{background:#54627a}
+  .s-completed,.tag-ok{color:var(--ok)} .s-running,.s-pending,.tag-warn{color:var(--warn)} .s-failed,.tag-bad{color:var(--bad)}
+  .muted{color:var(--muted)} .small{font-size:12px}
+  details summary{cursor:pointer;color:var(--muted);font-size:12px;margin-top:8px}
+  .scope{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted)}
+  pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;max-height:300px;font-size:12px}
+  #login{max-width:380px;margin:14vh auto;text-align:center}
+  #login input{width:100%;margin-top:4px}
+  #toast{position:fixed;bottom:22px;right:22px;background:var(--panel);border:1px solid var(--line);
+         border-radius:10px;padding:12px 16px;opacity:0;transition:.3s;pointer-events:none;max-width:380px}
+  #toast.show{opacity:1}
+  .bar{height:8px;border-radius:999px;background:var(--panel2);overflow:hidden;margin-top:6px}
+  .bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--bad),var(--warn),var(--ok))}
+  .empty{color:var(--muted);font-size:13px;padding:10px 0}
+  .pathline{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="card" style="display:none">
+  <div class="brand" style="font-size:22px;letter-spacing:4px">AD<b>VERSA</b></div>
+  <p class="muted small">Offensive Operations Console</p>
+  <input id="email" value="admin@adversa.io" placeholder="email"/>
+  <input id="password" type="password" value="ChangeMe123!" placeholder="password"/>
+  <div id="loginErr" class="tag-bad small" style="min-height:18px;margin-top:8px"></div>
+  <button style="width:100%;margin-top:8px" onclick="login()">Sign in</button>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <header>
+    <span class="brand">AD<b>VERSA</b></span>
+    <span class="muted small">Operation:</span>
+    <select id="engSel" style="min-width:240px" onchange="onEngChange()"></select>
+    <button class="ghost" onclick="newOp()">+ New operation</button>
+    <span class="sp"></span>
+    <span class="muted small" id="whoami"></span>
+    <button class="ghost" onclick="logout()">Sign out</button>
+  </header>
+
+  <main>
+    <!-- KPI overview -->
+    <div class="kpis">
+      <div class="kpi"><div class="n" id="k_hosts">—</div><div class="l">Hosts found</div></div>
+      <div class="kpi"><div class="n" style="color:var(--crit)" id="k_crit">—</div><div class="l">Critical</div></div>
+      <div class="kpi"><div class="n" style="color:var(--high)" id="k_high">—</div><div class="l">High</div></div>
+      <div class="kpi"><div class="n" id="k_find">—</div><div class="l">Total findings</div></div>
+      <div class="kpi"><div class="n" id="k_cov">—</div><div class="l">Detection coverage</div></div>
+      <div class="kpi"><div class="n" id="k_probes">—</div><div class="l">Probes online</div></div>
+    </div>
+
+    <!-- The 4-step engagement flow -->
+    <div class="grid">
+      <!-- 1. Recon -->
+      <div class="card">
+        <h2>🔍 Step 1 — Find what's out there</h2>
+        <div class="desc">Sweep the engagement scope for live hosts and the services running on them. A probe on that network does the scanning.</div>
+        <button onclick="runDiscovery()" id="discBtn">Discover hosts &amp; services</button>
+        <span class="muted small" id="discNote"></span>
+        <details>
+          <summary>Advanced (ports &amp; speed)</summary>
+          <div class="small" style="margin-top:6px">
+            <label class="muted">Ports</label> <input id="ports" placeholder="default" style="width:120px"/>
+            <label class="muted" style="margin-left:8px">nmap args</label> <input id="args" value="-sV -T4 -Pn" style="width:160px"/>
+          </div>
+        </details>
+      </div>
+
+      <!-- 2. Vuln -->
+      <div class="card">
+        <h2>🛡 Step 2 — Look for weaknesses</h2>
+        <div class="desc">Check the discovered services against known vulnerabilities and misconfigurations. Findings show up below, worst first.</div>
+        <button class="b2" onclick="runVulnScan()" id="vulnBtn">Scan for vulnerabilities</button>
+        <span class="muted small" id="vulnNote"></span>
+      </div>
+
+      <!-- 3. Attack paths -->
+      <div class="card">
+        <h2>🧭 Step 3 — Map the routes to crown jewels</h2>
+        <div class="desc">Show how an attacker could chain access from an exposed host to your most critical systems, and which hops to cut first.</div>
+        <button class="b2" onclick="loadPaths()" id="pathBtn">Map attack paths</button>
+        <div id="paths" style="margin-top:12px"></div>
+      </div>
+
+      <!-- 4. Detection -->
+      <div class="card">
+        <h2>📡 Step 4 — Did the defenders notice?</h2>
+        <div class="desc">Compare what we did against the blue team's alerts to find blind spots. Needs a SIEM/EDR configured for this operation.</div>
+        <button class="b2" onclick="loadCoverage()" id="covBtn">Check detection coverage</button>
+        <div id="coverage" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- Findings (the loot) -->
+    <div class="card full">
+      <h2>💥 Findings <span class="muted small right" id="findCount"></span></h2>
+      <div class="desc">Weaknesses ranked by severity and risk. Click one for detail.</div>
+      <table><thead><tr><th>Severity</th><th>Risk</th><th>Title</th><th>Host</th><th>Status</th></tr></thead>
+        <tbody id="findings"><tr><td colspan="5" class="empty">No findings yet — run steps 1 &amp; 2.</td></tr></tbody></table>
+      <pre id="findDetail" style="display:none"></pre>
+    </div>
+
+    <!-- Attack surface + probes -->
+    <div class="grid">
+      <div class="card">
+        <h2>🌐 Attack surface</h2>
+        <div class="desc">Hosts and open services discovered in this operation.</div>
+        <div id="surface"><div class="empty">Run discovery to populate.</div></div>
+      </div>
+      <div class="card">
+        <h2>📟 Probes</h2>
+        <div class="desc">Your deployed scanning sensors and their status.</div>
+        <table><thead><tr><th>Sensor</th><th>State</th><th>Can do</th><th>Last seen</th></tr></thead>
+          <tbody id="agents"><tr><td colspan="4" class="empty">loading…</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <!-- Report -->
+    <div class="card full">
+      <h2>📄 Report</h2>
+      <div class="desc">Generate a plain-language executive summary plus technical write-ups (AI-assisted, human-approved). Requires an Anthropic key on the server.</div>
+      <button class="ghost" onclick="genReport()" id="repBtn">Generate report draft</button>
+      <div id="report" style="margin-top:12px"></div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const LS=localStorage;
+const tok={get a(){return LS.getItem('adv_a')},get r(){return LS.getItem('adv_r')},get e(){return LS.getItem('adv_e')},
+  set(a,r,e){LS.setItem('adv_a',a);LS.setItem('adv_r',r);if(e)LS.setItem('adv_e',e)},clear(){LS.removeItem('adv_a');LS.removeItem('adv_r')}};
+let ENG=null, ENGOBJ=null;
+
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function ago(iso){if(!iso)return'—';const s=(Date.now()-new Date(iso).getTime())/1000;return s<60?Math.round(s)+'s':s<3600?Math.round(s/60)+'m':Math.round(s/3600)+'h';}
+
+// auth-aware fetch w/ silent token refresh
+async function api(path,opts={},retry=true){
+  const o={...opts,headers:{'Content-Type':'application/json',...(opts.headers||{})}};
+  if(tok.a)o.headers.Authorization='Bearer '+tok.a;
+  const r=await fetch(path,o);
+  if(r.status===401&&retry&&tok.r){
+    const rr=await fetch('/auth/refresh?refresh_token='+encodeURIComponent(tok.r),{method:'POST'});
+    if(rr.ok){const d=await rr.json();tok.set(d.access_token,d.refresh_token);return api(path,opts,false);}
+    logout();throw new Error('session expired');
+  }
+  if(!r.ok){let e;try{e=await r.json()}catch{e={detail:r.statusText}}throw new Error(typeof e.detail==='string'?e.detail:JSON.stringify(e.detail));}
+  return r.status===204?null:r.json();
+}
+
+async function login(){
+  const email=document.getElementById('email').value.trim(),password=document.getElementById('password').value,err=document.getElementById('loginErr');err.textContent='';
+  try{const r=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(typeof e.detail==='string'?e.detail:'Invalid credentials');}
+    const d=await r.json();tok.set(d.access_token,d.refresh_token,email);boot();
+  }catch(e){err.textContent=e.message;}
+}
+function logout(){tok.clear();app.style.display='none';document.getElementById('login').style.display='block';}
+const app=document.getElementById('app');
+
+// ── operations (engagements) ────────────────────────────────────────────────
+async function loadOps(){
+  const d=await api('/engagements?page=1&page_size=100');const items=d.items||[];
+  const sel=document.getElementById('engSel');const cur=sel.value;
+  sel.innerHTML=items.length?items.map(e=>`<option value="${e.id}">${esc(e.name)} — ${(e.scope_cidrs||[]).join(', ')}</option>`).join(''):'<option value="">(no operations yet)</option>';
+  if(cur&&items.find(e=>e.id===cur))sel.value=cur; else if(items.length){ENG=sel.value=items[0].id;}
+  ENG=sel.value||null;
+}
+async function newOp(){
+  const name=prompt('Name this operation (e.g. "Acme external Q3"):');if(!name)return;
+  const scope=prompt('In-scope network / CIDR or host (comma-separated):','10.0.1.0/24');if(!scope)return;
+  const e=await api('/engagements',{method:'POST',body:JSON.stringify({name,scope_cidrs:scope.split(',').map(s=>s.trim()).filter(Boolean)})});
+  await loadOps();document.getElementById('engSel').value=e.id;onEngChange();toast('Operation created');
+}
+function onEngChange(){ENG=document.getElementById('engSel').value||null;document.getElementById('paths').innerHTML='';document.getElementById('coverage').innerHTML='';document.getElementById('report').innerHTML='';refresh();}
+
+// ── step actions (plain-language) ───────────────────────────────────────────
+async function runDiscovery(){
+  if(!ENG)return toast('Create an operation first');
+  const scope=(ENGOBJ&&ENGOBJ.scope_cidrs)||[];
+  if(!scope.length)return toast('This operation has no scope');
+  const params={targets:scope,args:document.getElementById('args').value};const p=document.getElementById('ports').value.trim();if(p)params.ports=p;
+  try{await api('/agents/jobs',{method:'POST',body:JSON.stringify({engagement_id:ENG,job_type:'discovery',params})});
+    document.getElementById('discNote').textContent=' queued — a probe will scan '+scope.join(', ');toast('Host discovery queued');}
+  catch(e){toast('Error: '+e.message);}
+}
+async function runVulnScan(){
+  if(!ENG)return toast('Create an operation first');
+  try{await api(`/engagements/${ENG}/scans/nuclei`,{method:'POST',body:JSON.stringify({templates:['cves','misconfigs'],rate_limit:150})});
+    document.getElementById('vulnNote').textContent=' scan started — findings will appear below';toast('Vulnerability scan started');}
+  catch(e){toast('Error: '+e.message);}
+}
+async function loadPaths(){
+  if(!ENG)return;const box=document.getElementById('paths');box.innerHTML='<span class="muted small">computing…</span>';
+  try{
+    const d=await api(`/engagements/${ENG}/attack-paths`);const items=d.items||[];
+    let choke=[];try{const c=await api(`/engagements/${ENG}/chokepoints`);choke=c.chokepoints||[]}catch{}
+    if(!items.length){box.innerHTML='<div class="empty">No attack paths yet — discover hosts &amp; record findings first.</div>';return;}
+    box.innerHTML=`<table><thead><tr><th>Route</th><th>Hops</th><th>Risk</th></tr></thead><tbody>`+
+      items.slice(0,8).map(p=>`<tr><td class="pathline">${esc((p.source||'?').slice(0,8))} → … → ${esc((p.target||'?').slice(0,8))}</td><td>${p.hops??'—'}</td><td><b style="color:${riskColor(p.risk_score)}">${Math.round(p.risk_score||0)}/100</b></td></tr>`).join('')+
+      `</tbody></table>`+(choke.length?`<div class="small" style="margin-top:8px"><b>Cut these first:</b> ${choke.slice(0,5).map(c=>esc((c.label||c.asset_id||'').slice(0,12))+' ('+Math.round((c.path_fraction||0)*100)+'%)').join(', ')}</div>`:'');
+  }catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}</div>`;}
+}
+async function loadCoverage(){
+  if(!ENG)return;const box=document.getElementById('coverage');box.innerHTML='<span class="muted small">checking…</span>';
+  try{
+    const c=await api(`/engagements/${ENG}/detection-validation/coverage`);
+    if(!c.total_actions){box.innerHTML='<div class="empty">No detection data. Configure a SIEM/EDR and run a validation, then check again.</div>';return;}
+    const pct=c.coverage_pct||0;
+    box.innerHTML=`<div><b style="font-size:20px">${pct}%</b> <span class="muted small">of ${c.total_actions} actions caught</span>
+      <div class="bar"><span style="width:${pct}%"></span></div>
+      <div class="small" style="margin-top:8px">
+        <span class="tag-ok">● ${c.detected} detected</span> &nbsp;
+        <span class="tag-ok">● ${c.prevented} blocked</span> &nbsp;
+        <span class="tag-bad">● ${c.missed} missed</span></div></div>`;
+    document.getElementById('k_cov').textContent=pct+'%';
+  }catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}</div>`;}
+}
+async function genReport(){
+  if(!ENG)return;const box=document.getElementById('report');box.innerHTML='<span class="muted small">generating…</span>';
+  try{await api(`/engagements/${ENG}/ai-report/generate`,{method:'POST',body:JSON.stringify({include_technical:true,include_remediation:true,max_findings:10})});
+    setTimeout(loadDraft,2500);box.innerHTML='<span class="muted small">draft requested — loading sections…</span>';
+  }catch(e){box.innerHTML=`<div class="empty">${esc(e.message)} (set ANTHROPIC_API_KEY and use <code>make up-ai</code>)</div>`;}
+}
+async function loadDraft(){
+  try{const d=await api(`/engagements/${ENG}/ai-report/draft`);
+    document.getElementById('report').innerHTML=d.sections&&d.sections.length?
+      d.sections.map(s=>`<details><summary><b>${s.output_type.replace(/_/g,' ')}</b> — <span class="muted">${s.validation&&s.validation.valid?'✓ validated':'⚠ review'}</span></summary><pre>${esc(s.output)}</pre></details>`).join('')+
+      `<button style="margin-top:10px" onclick="approveReport()">Approve report</button>`
+      :'<div class="empty">No draft sections yet.</div>';
+  }catch(e){document.getElementById('report').innerHTML=`<div class="empty">${esc(e.message)}</div>`;}
+}
+async function approveReport(){try{const r=await api(`/engagements/${ENG}/ai-report/approve`,{method:'POST',body:'{}'});toast('Approved '+r.approved+' section(s)');}catch(e){toast(e.message);}}
+
+// ── data panels ─────────────────────────────────────────────────────────────
+async function loadKpisAndFindings(){
+  if(!ENG)return;
+  try{
+    const det=await api(`/engagements/${ENG}`);ENGOBJ=det;
+    const fs=det.finding_summary||{};
+    document.getElementById('k_hosts').textContent=det.asset_count??0;
+    document.getElementById('k_crit').textContent=fs.critical??0;
+    document.getElementById('k_high').textContent=fs.high??0;
+    document.getElementById('k_find').textContent=fs.total??0;
+  }catch(e){}
+  try{
+    const d=await api(`/findings?engagement_id=${ENG}&page=1&page_size=100`);
+    const items=(d.items||d||[]);const order={critical:0,high:1,medium:2,low:3,info:4};
+    items.sort((a,b)=>(order[a.severity]-order[b.severity])||((b.risk_score||0)-(a.risk_score||0)));
+    document.getElementById('findCount').textContent=items.length?items.length+' total':'';
+    document.getElementById('findings').innerHTML=items.length?items.slice(0,60).map(f=>`<tr class="clk" onclick='showFind(${JSON.stringify(JSON.stringify(f))})'>
+      <td><span class="sev ${f.severity}">${f.severity}</span></td>
+      <td><b>${f.risk_score!=null?Math.round(f.risk_score):'—'}</b></td>
+      <td>${esc(f.title)}</td><td class="muted">${esc(f.asset_id?String(f.asset_id).slice(0,8):'—')}</td>
+      <td class="muted">${esc(f.status)}</td></tr>`).join('')
+      :'<tr><td colspan="5" class="empty">No findings yet — run steps 1 &amp; 2.</td></tr>';
+  }catch(e){}
+}
+function showFind(s){const f=JSON.parse(s);const p=document.getElementById('findDetail');
+  p.textContent=`${f.title}\n\nSeverity: ${f.severity}   Risk: ${f.risk_score??'—'}   Status: ${f.status}\nCVEs: ${(f.cve_ids||[]).join(', ')||'—'}\nMITRE: ${(f.mitre_techniques||[]).join(', ')||'—'}\n\n${f.description||''}\n\nRemediation:\n${f.remediation||'—'}`;
+  p.style.display='block';}
+
+async function loadSurface(){
+  if(!ENG)return;
+  try{const a=await api(`/engagements/${ENG}/assets`);
+    const box=document.getElementById('surface');
+    if(!a.length){box.innerHTML='<div class="empty">Run discovery to populate.</div>';return;}
+    box.innerHTML='<table><thead><tr><th>Host</th><th>OS</th><th>Open services</th></tr></thead><tbody>'+
+      a.slice(0,40).map(h=>`<tr><td><b>${esc(h.hostname||h.ip_address||'?')}</b><div class="scope">${esc(h.ip_address||'')}</div></td>
+        <td class="muted small">${esc(h.os||'—')}</td>
+        <td class="small">${(h.services||[]).map(s=>esc((s.service||s.port)+'/'+s.port)).join(', ')||'<span class="muted">—</span>'}</td></tr>`).join('')+'</tbody></table>';
+  }catch(e){}
+}
+async function loadAgents(){
+  try{const a=await api('/agents');const on=a.filter(x=>x.online);
+    document.getElementById('k_probes').textContent=on.length;
+    document.getElementById('agents').innerHTML=a.length?a.slice(0,12).map(x=>`<tr>
+      <td><span class="dot ${x.online?'on':'off'}"></span>${esc(x.name)}</td>
+      <td class="${x.online?'tag-ok':'muted'}">${x.online?'online':'offline'}</td>
+      <td class="muted small">${(x.capabilities||[]).join(', ')||'—'}</td>
+      <td class="muted small">${ago(x.last_heartbeat)}</td></tr>`).join('')
+      :'<tr><td colspan="4" class="empty">No probes — deploy one (see RUNBOOK Part B).</td></tr>';
+  }catch(e){}
+}
+function riskColor(r){r=r||0;return r>=70?'var(--crit)':r>=40?'var(--high)':'var(--low)';}
+
+// ── boot + polling ──────────────────────────────────────────────────────────
+let timer=null;
+async function boot(){
+  document.getElementById('login').style.display='none';app.style.display='block';
+  document.getElementById('whoami').textContent=tok.e||'';
+  await loadOps();refresh();clearInterval(timer);timer=setInterval(()=>{loadAgents();loadKpisAndFindings();loadSurface();},6000);
+}
+function refresh(){loadAgents();loadKpisAndFindings();loadSurface();}
+
+(function(){if(tok.a)boot();else document.getElementById('login').style.display='block';})();
+</script>
+</body>
+</html>

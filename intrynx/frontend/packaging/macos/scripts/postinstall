@@ -1,0 +1,20 @@
+#!/bin/sh
+# pkg postinstall: seed config (if absent) and load the LaunchDaemon.
+set -e
+APP=netagent
+SUPPORT="/Library/Application Support/$APP"
+
+mkdir -p "$SUPPORT"
+chmod 0750 "$SUPPORT"
+if [ ! -f "$SUPPORT/$APP.env" ]; then
+    cp "$SUPPORT/$APP.env.example" "$SUPPORT/$APP.env" 2>/dev/null || true
+    chmod 0640 "$SUPPORT/$APP.env" 2>/dev/null || true
+fi
+
+PLIST=/Library/LaunchDaemons/com.$APP.probe.plist
+chown root:wheel "$PLIST"
+chmod 0644 "$PLIST"
+launchctl unload "$PLIST" 2>/dev/null || true
+launchctl load -w "$PLIST" 2>/dev/null || true
+echo "Installed. Edit '$SUPPORT/$APP.env' (enroll token); the daemon picks it up on next start."
+exit 0

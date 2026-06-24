@@ -1,0 +1,19 @@
+# Optional, heavy integrations — install with: pip install -r requirements-extras.txt
+# or build the API image with --build-arg INSTALL_EXTRAS=1.
+# Every module that uses these imports them defensively; without them the
+# corresponding feature degrades (returns 503 / falls back) but the API still runs.
+
+# Prompt 4 — exploit engine artifact storage
+minio==7.2.11
+# Prompt 5 — Active Directory assessment
+ldap3==2.9.1
+impacket==0.12.0
+neo4j==5.27.0
+bloodhound==1.7.2
+# Prompt 8 — AI engine (LLM reporting + ML risk scoring)
+anthropic==0.69.0
+scikit-learn==1.6.0
+xgboost==2.1.3
+shap==0.46.0
+pandas==2.2.3
+numpy==2.2.1

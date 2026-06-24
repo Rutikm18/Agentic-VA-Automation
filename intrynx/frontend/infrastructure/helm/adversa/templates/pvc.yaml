@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-postgres-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ .Values.persistence.postgres.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.postgres.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-neo4j-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ .Values.persistence.neo4j.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.neo4j.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-minio-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ .Values.persistence.minio.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.minio.size }}

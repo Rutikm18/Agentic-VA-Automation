@@ -1,0 +1,11 @@
+{
+  "users": [
+    {
+      "email": "you@yourorg.com",
+      "role": "admin",
+      "allowedScopes": [],
+      "addedAt": "2026-06-03T17:58:45.966Z",
+      "addedBy": "system"
+    }
+  ]
+}

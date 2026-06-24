@@ -1,0 +1,13 @@
+apiVersion: v2
+name: adversa
+description: ADVERSA AI-Powered Network VAPT Platform
+type: application
+version: 1.4.0
+appVersion: "1.4.0"
+keywords:
+  - vapt
+  - security
+  - adversa
+maintainers:
+  - name: ADVERSA Engineering
+    email: eng@adversa.io

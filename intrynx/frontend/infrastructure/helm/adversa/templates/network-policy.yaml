@@ -1,0 +1,53 @@
+{{- if .Values.networkPolicy.enabled }}
+# Allow API → Postgres
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-api-egress
+spec:
+  podSelector:
+    matchLabels:
+      app: adversa-api
+  policyTypes: [Egress, Ingress]
+  ingress:
+    - from:
+        - podSelector: {}        # Allow intra-namespace (ingress controller)
+      ports:
+        - port: 3000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app: postgres }
+      ports: [{ port: {{ .Values.networkPolicy.allowedPorts.apiToPostgres }} }]
+    - to:
+        - podSelector:
+            matchLabels: { app: redis }
+      ports: [{ port: {{ .Values.networkPolicy.allowedPorts.apiToRedis }} }]
+    - to:
+        - podSelector:
+            matchLabels: { app: kafka }
+      ports: [{ port: {{ .Values.networkPolicy.allowedPorts.apiToKafka }} }]
+    - to:
+        - podSelector:
+            matchLabels: { app: neo4j }
+      ports: [{ port: {{ .Values.networkPolicy.allowedPorts.apiToNeo4j }} }]
+    - to:
+        - podSelector:
+            matchLabels: { app: vault }
+      ports: [{ port: {{ .Values.networkPolicy.allowedPorts.apiToVault }} }]
+    # Allow DNS
+    - to: [{}]
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+    # Allow HTTPS to Anthropic
+    - to: [{}]
+      ports: [{ port: 443 }]
+---
+# Deny all by default — other services must opt-in
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-default-deny
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+{{- end }}

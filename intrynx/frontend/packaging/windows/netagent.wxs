@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- WiX v4 definition for a signed .msi that installs netagent.exe as an auto-start service.
+     Build:  wix build netagent.wxs -d BinPath=dist\netagent-windows-x64.exe -o netagent.msi
+     Sign:   signtool sign /fd SHA256 /tr <timestamp-url> /td SHA256 /f cert.pfx /p <pw> netagent.msi
+     The MSI runs the binary as LocalService (least privilege). The enroll token is supplied
+     out-of-band into %ProgramData%\netagent\netagent.env (config UI or a separate step). -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:fw="http://wixtoolset.org/schemas/v4/wxs/firewall">
+  <Package Name="netagent" Manufacturer="YourOrg" Version="1.0.0.0"
+           UpgradeCode="6f1d6a2e-0000-4d00-9a00-netagentprobe01" Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLDIR" Name="netagent">
+        <Component Id="ProbeExe" Guid="*">
+          <File Id="netagentExe" Source="!(bindpath.BinPath)" Name="netagent.exe" KeyPath="yes" />
+          <ServiceInstall Id="NetagentSvc" Name="netagent" DisplayName="netagent"
+                          Description="netagent network service" Start="auto" Type="ownProcess"
+                          ErrorControl="normal" Account="NT AUTHORITY\LocalService"
+                          Arguments="run" />
+          <ServiceControl Id="NetagentSvcCtl" Name="netagent"
+                          Start="install" Stop="both" Remove="uninstall" Wait="no" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main">
+      <ComponentRef Id="ProbeExe" />
+    </Feature>
+  </Package>
+</Wix>

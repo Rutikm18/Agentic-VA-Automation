@@ -1,0 +1,51 @@
+# ── OS / editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# ── Secrets / local env (keep the *.example files) ────────────────────────────
+.env
+.env.local
+*.local
+probe/probe.env
+
+# ── Backend (Python) ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ── Frontend (Next.js) ────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/build/
+frontend/tsconfig.tsbuildinfo
+frontend/.adversa-server.log
+node_modules/
+
+# ── Probe ─────────────────────────────────────────────────────────────────────
+probe/state/
+
+# ── Logs / scratch ────────────────────────────────────────────────────────────
+*.log
+
+# ── Stray build artifacts ─────────────────────────────────────────────────────
+/adversa/
+.backup/
+graphify-out/
+
+# Probe license signing — NEVER commit the private key or per-deployment licenses
+probe/keys/
+probe/license.key
+probe/**/__pycache__/

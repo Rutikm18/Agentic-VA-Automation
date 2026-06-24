@@ -1,0 +1,100 @@
+name: build-probe
+
+# Builds the opaque probe binary for all four targets, then signs/notarizes per OS.
+# macOS-ARM64 is validated locally; this matrix produces the other three on their own runners.
+#
+# Required repo secrets (signing — fill per deployment):
+#   PROBE_MANAGER_URL, PROBE_CERT_PIN, PROBE_SIG_PIN     # baked into every binary
+#   MACOS_CERT_P12_BASE64, MACOS_CERT_PASSWORD, MACOS_NOTARY_KEY_*   # Apple Developer ID + notary
+#   WIN_CERT_PFX_BASE64, WIN_CERT_PASSWORD                           # Authenticode (EV ideal)
+# Tool binaries are fetched in the "stage tools" step — point it at your licensed/pinned builds.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["probe-v*"]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x86_64
+            runs-on: ubuntu-latest
+          - target: linux-arm64
+            runs-on: ubuntu-24.04-arm      # GitHub ARM64 runner
+          - target: windows-x64
+            runs-on: windows-latest
+          - target: macos-arm64
+            runs-on: macos-14
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r probe/requirements.txt pyinstaller
+
+      - name: Stage tools  # acquire the scanner binaries for THIS target into ./toolbin + tools.json
+        shell: bash
+        run: |
+          mkdir -p toolbin
+          # TODO: download/copy your pinned tool builds for ${{ matrix.target }} into ./toolbin,
+          # then write tools.json mapping roles → those paths. Keep checksums pinned.
+          # Example (replace with real, verified artifacts):
+          #   curl -L "$NAABU_URL_${{ matrix.target }}"  -o toolbin/naabu  && chmod +x toolbin/naabu
+          #   curl -L "$NUCLEI_URL_${{ matrix.target }}" -o toolbin/nuclei && chmod +x toolbin/nuclei
+          #   ...
+          echo "{}" > tools.json   # ← replace with the real role→path map
+
+      - name: Build
+        shell: bash
+        run: |
+          python build/build_probe.py \
+            --tools tools.json \
+            --manager-url "${{ secrets.PROBE_MANAGER_URL }}" \
+            --cert-pin   "${{ secrets.PROBE_CERT_PIN }}" \
+            --sig-pin    "${{ secrets.PROBE_SIG_PIN }}" \
+            --app-name   netagent \
+            --name       "netagent-${{ matrix.target }}"
+
+      # ── Signing (per OS) ──
+      - name: Sign (macOS — Developer ID + notarize)
+        if: matrix.target == 'macos-arm64'
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          P12_PW: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          echo "$P12" | base64 -d > cert.p12
+          security create-keychain -p ci build.keychain
+          security import cert.p12 -k build.keychain -P "$P12_PW" -T /usr/bin/codesign
+          security unlock-keychain -p ci build.keychain
+          codesign --force --options runtime --timestamp \
+            --sign "Developer ID Application" "dist/netagent-macos-arm64"
+          # notarytool: submit dist binary (zipped), then `xcrun stapler staple`.
+          # xcrun notarytool submit ... --wait ; xcrun stapler staple ...
+
+      - name: Sign (Windows — Authenticode)
+        if: matrix.target == 'windows-x64'
+        shell: pwsh
+        run: |
+          # signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
+          #   /f cert.pfx /p $env:WIN_CERT_PASSWORD dist\netagent-windows-x64.exe
+          Write-Host "sign windows binary here"
+
+      - name: Sign (Linux — detached GPG)
+        if: startsWith(matrix.target, 'linux')
+        run: |
+          # gpg --batch --yes --detach-sign --armor dist/netagent-${{ matrix.target }}
+          echo "gpg-sign linux binary here"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: probe-${{ matrix.target }}
+          path: dist/netagent-${{ matrix.target }}*

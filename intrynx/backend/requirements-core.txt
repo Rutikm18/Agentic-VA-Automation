@@ -1,0 +1,24 @@
+# Core runtime — everything the API needs to boot and serve every endpoint.
+# Heavy/optional integrations (AI, AD, Neo4j) live in requirements-extras.txt and
+# are imported defensively, so the platform runs fully without them.
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+pydantic==2.10.3
+pydantic-settings==2.6.1
+email-validator==2.2.0
+PyJWT==2.10.1
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1  # pinned: passlib 1.7.4 trips on bcrypt >= 4.1 backend detection
+redis[asyncio]==5.2.0
+structlog==24.4.0
+python-multipart==0.0.12
+python-dateutil==2.9.0.post0
+# Used by in-process engines that back core endpoints
+httpx[asyncio]==0.28.1
+aiofiles==24.1.0
+pyyaml==6.0.2
+networkx==3.4.2
+msgpack==1.1.0

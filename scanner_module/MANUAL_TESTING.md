@@ -27,7 +27,7 @@ properties (plus your real MySQL on 3306 if you run one):
 
 ```bash
 # scope: loopback + your LAN (so you can test against the router too)
-printf '127.0.0.1\n192.168.1.0/24\n' > scope_test.txt
+printf '127.0.0.1\n172.18.30.0/24\n' > scope_test.txt
 
 # Fixture A: HTTP server on 8080 with a known title
 mkdir -p /tmp/vafix && printf '<html><head><title>GROUND-TRUTH-PAGE</title></head><body>hi</body></html>' > /tmp/vafix/index.html
